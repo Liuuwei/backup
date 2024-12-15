@@ -1,5 +1,5 @@
-import { _decorator, Component, Mask, UITransform } from 'cc';
-import { ContentComponent } from './ContentNode';
+import { _decorator, Component, Mask, Node, UITransform } from 'cc';
+import { ContentComponent, ContentNode } from './ContentComponent';
 const { ccclass, property } = _decorator;
 
 @ccclass("ViewComponent")
@@ -9,13 +9,11 @@ export class ViewComponent extends Component {
 
     protected onLoad(): void {
         this.node.addComponent(Mask);
-        this.node.addComponent(ContentComponent);
+        let content = new ContentNode("contet");
+        this.node.addChild(content);
+        content.addComponent(ContentComponent);
 
         this.setViewRange(500, 500);
-    }
-
-    addContent(): void {
-        
     }
 
     width(): number {
