@@ -1,4 +1,4 @@
-import { _decorator, Component, Mask, Node, UITransform } from 'cc';
+import { _decorator, Component, Mask, Node, Sprite, UITransform } from 'cc';
 import { ContentComponent, ContentNode } from './ContentComponent';
 const { ccclass, property } = _decorator;
 
@@ -8,20 +8,24 @@ export class ViewComponent extends Component {
     private height_: number;
 
     protected onLoad(): void {
+        let size = this.node.parent.getComponent(UITransform).contentSize;
+        this.setViewRange(size.width, size.height);
+
         this.node.addComponent(Mask);
+
         let content = new ContentNode("contet");
+        let comp = content.addComponent(ContentComponent);
+        comp.view = this;
+
         this.node.addChild(content);
-        content.addComponent(ContentComponent);
-
-        this.setViewRange(500, 500);
     }
 
-    width(): number {
-        return this.width_;
+    get top(): number {
+        return this.height_ * 0.5;
     }
 
-    height(): number {
-        return this.height_;
+    get bottom(): number {
+        return -this.height_ * 0.5;
     }
 
     setViewRange(width: number, heihgt: number): void {

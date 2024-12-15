@@ -20,6 +20,11 @@ export class ContentNode extends Node {
     }
 }
 
+interface ViewRange {
+    top: number, 
+    bottom: number, 
+};
+
 @ccclass('ContentComponent')
 export class ContentComponent extends Component {
     private view_: ViewComponent;
@@ -28,6 +33,18 @@ export class ContentComponent extends Component {
 
     protected onLoad(): void {
         this.node.on(NodeEventType.CHILD_REMOVED, this.onRemoveChild, this);
+    }
+
+    set view(view: ViewComponent) {
+        this.view_ = view;
+    }
+
+    get view(): ViewComponent {
+        return this.view_;
+    }
+
+    get viewRange(): ViewRange {
+        return {top: this.topY_ + this.node.position.y, bottom: this.bottomY_ + this.node.position.y};
     }
 
     insert(child: Node): void {
@@ -51,12 +68,16 @@ export class ContentComponent extends Component {
             }
             this.topY_ += height;
         }
+
+        console.log(`insert node: ${child.name}, top: ${this.topY_}, bottom: ${this.bottomY_}`);
     }
 
     append(child: Node): void {
         let height = child.getComponent(UITransform).contentSize.height;
         child.setPosition(0, this.bottomY_ - height * 0.5);
         this.bottomY_ -= height;
+
+        console.log(`append node: ${child.name}, top: ${this.topY_}, bottom: ${this.bottomY_}`);
     }
 
     onChildSizeChanged(): void {
@@ -97,11 +118,17 @@ export class ContentComponent extends Component {
         }
         content.bottomY_ -= deltaHeight;
 
+        content.updateContentPos();
+
         console.log(`onChildSizeChanged node: ${child.name}, top: ${content.topY_}, bottom: ${content.bottomY_}`);
     }
 
-    updateLayout(): void {
-        
+    updateContentPos(): void {
+        let viewRange = this.viewRange;
+        if (viewRange.top < this.view.top) {
+            let deltaHeight = this.view.top - viewRange.top;
+            this.node.setPosition(0, this.node.position.y + deltaHeight);
+        }
     }
 
     onRemoveChild(child: Node): void {
@@ -129,5 +156,9 @@ export class ContentComponent extends Component {
             let node = this.node.children[i];
             node.setPosition(0, node.position.y - height);
         }
+
+        this.updateContentPos();
+
+        console.log(`onRemoveChild node: ${child.name}, top: ${this.topY_}, bottom: ${this.bottomY_}`);
     }
 }
