@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, NodeEventType, UITransform } from 'cc';
+import { _decorator, Component, EventTouch, Label, MathBase, Node, NodeEventType, UITransform } from 'cc';
 import { ViewComponent } from './ViewComponent';
 const { ccclass, property } = _decorator;
 
@@ -33,6 +33,12 @@ export class ContentComponent extends Component {
 
     protected onLoad(): void {
         this.node.on(NodeEventType.CHILD_REMOVED, this.onRemoveChild, this);
+
+        for (let i = 0; i < 1000; i++) {
+            let node = new Node("label" + i);
+            node.addComponent(Label).string = "label" + i;
+            this.node.addChild(node);
+        }
     }
 
     set view(view: ViewComponent) {
@@ -160,5 +166,21 @@ export class ContentComponent extends Component {
         this.updateContentPos();
 
         console.log(`onRemoveChild node: ${child.name}, top: ${this.topY_}, bottom: ${this.bottomY_}`);
+    }
+
+    processTouchMoved(event: EventTouch): void {
+        let delta = event.getDeltaY();
+        let viewRange = this.viewRange;
+        if (delta > 0) {
+            delta = Math.min(this.view_.bottom - viewRange.bottom, delta);
+            if (delta > 0) {
+                this.node.setPosition(0, this.node.position.y + delta);
+            }
+        } else {
+            delta = Math.min(viewRange.top - this.view_.top, -delta);
+            if (delta > 0) {
+                this.node.setPosition(0, this.node.position.y - delta);
+            }
+        }
     }
 }
