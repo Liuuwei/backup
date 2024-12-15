@@ -106,7 +106,6 @@ export class ContentComponent extends Component {
 
     onChildSizeChanged(): void {
         let child = (this as any as Node);
-        warn(`onChildSizeChanged, node: ${child.name}`);
         let height = child.getComponent(UITransform).contentSize.height;
 
         let parent = child.parent;
@@ -137,17 +136,36 @@ export class ContentComponent extends Component {
             }
         }
 
-        child.setPosition(0, child.position.y - deltaHeight * 0.5);
-        for (let i = index + 1; i < children.length; i++) {
-            let node = children[i];
-            node.setPosition(0, node.position.y - deltaHeight);
-            console.log(`onChildSizeChanged, node: ${node.name}, pos: ${node.position}, delta: ${deltaHeight}`);
+        if (content.inViewRange(child)) {
+            child.setPosition(0, child.position.y - deltaHeight * 0.5);
+            for (let i = index + 1; i < children.length; i++) {
+                let node = children[i];
+                node.setPosition(0, node.position.y - deltaHeight);
+            }
+            content.bottom = content.bottom - deltaHeight;
+        } else {
+            if (child.position.y > content.view_.centerInContentSpace) {
+                child.setPosition(0, child.position.y + deltaHeight * 0.5);
+                for (let i = 0; i < index; i++) {
+                    let node = children[i];
+                    node.setPosition(0, node.position.y + deltaHeight);
+                }
+                content.top += deltaHeight;
+            } else {
+                child.setPosition(0, child.position.y - deltaHeight * 0.5);
+                for (let i = index + 1; i < children.length; i++) {
+                    let node = children[i];
+                    node.setPosition(0, node.position.y - deltaHeight);
+                }
+                content.bottom -= deltaHeight;
+            }
         }
-        content.bottom = content.bottom - deltaHeight;
+
+        
     }
 
     updatePos(): void {
-        let viewRange = this.view_.viewRangeInContent;
+        let viewRange = this.view_.viewRangeInContentSpace;
         if (this.top < viewRange.top) {
             let deltaHeight = viewRange.top - this.top;
             if (deltaHeight != 0) {
@@ -162,16 +180,30 @@ export class ContentComponent extends Component {
         let y = child.position.y;
         let height = child.getComponent(UITransform).contentSize.height;
 
+        /*
+        viewY 671
+        viewHeight 426
+        y 882
+        height 50
+        */
+
+        let a = Math.abs(y - viewY);
+        let b = Math.abs(y + height * 0.5 - viewY);
+        let c = Math.abs(y - height * 0.5 - viewY);
+        let d = false;
         if (Math.abs(y - viewY) < viewHeight * 0.5 
             || Math.abs(y + height * 0.5 - viewY) < viewHeight * 0.5 
             || Math.abs(y - height * 0.5 - viewY) < viewHeight * 0.5) {
-            return true;
+            d = true;
         } else {
-            return false;
+            d = false;
         }
+
+        return d;
     }
 
     updateContentRenderingState(): void {
+        warn(`updateContentRenderingState`);
         for (let node of this.node.children) {
             let comp = node.getComponent(UIRenderer);
             if (comp) {
@@ -187,33 +219,42 @@ export class ContentComponent extends Component {
     onRemoveChild(child: Node): void {
         child.off(NodeEventType.SIZE_CHANGED, this.onChildSizeChanged, child);
 
-        let index = this.node.children.length - 1;
+        let height = child.getComponent(UITransform).contentSize.height;
+        let oldIndex = this.node.children.length;
         for (let i = 0; i < this.node.children.length; i++) {
-            if (this.node.children[i].position.y <= child.position.y) {
-                index = i;
+            if (this.node.children[i].position.y <= child.position.y + height * 0.5) {
+                oldIndex = i;
                 break;
             }
         }
 
-        let height = child.getComponent(UITransform).contentSize.height;
-        if (this.node.children.length == 0) {
-            this.top = this.top - height * 0.5;
-            this.bottom = this.bottom + height * 0.5;
-        } else if (index == this.node.children.length) {
-            this.bottom = this.bottom + height;
+        if (this.inViewRange(child)) {
+            for (let i = 0; i < oldIndex; i++) {
+                let node = this.node.children[i];
+                node.setPosition(0, node.position.y - height);
+            }
+            this.top -= height;
         } else {
-            this.top = this.top - height;
-        }
-
-        for (let i = 0; i < index; i++) {
-            let node = this.node.children[i];
-            node.setPosition(0, node.position.y - height);
+            if (child.position.y > this.view_.centerInContentSpace) {
+                for (let i = 0; i < oldIndex; i++) {
+                    let node = this.node.children[i];
+                    node.setPosition(0, node.position.y - height);
+                }
+                this.top -= height;
+            } else {
+                for (let i = oldIndex + 1; i < this.node.children.length; i++) {
+                    let node = this.node.children[i];
+                    node.setPosition(0, node.position.y - height);
+                    console.log(`node: ${node.name}`)
+                }
+                this.bottom += height;
+            }
         }
     }
 
     processTouchMoved(event: EventTouch): void {
         let delta = event.getDeltaY();
-        let viewRange = this.view_.viewRangeInContent;
+        let viewRange = this.view_.viewRangeInContentSpace;
         if (delta > 0) {
             if (delta > viewRange.bottom - this.bottom) {
                 let node = new Node(this.positive_.toString());

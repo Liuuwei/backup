@@ -26,9 +26,13 @@ export class ViewComponent extends Component {
         this.node.on(NodeEventType.TOUCH_CANCEL, this.onTouchCancel, this);
     }
 
-    get viewRangeInContent(): {top: number, bottom: number} {
+    get viewRangeInContentSpace(): {top: number, bottom: number} {
         let y = -this.content_.node.position.y;
         return {top: y + this.height_ * 0.5, bottom: y - this.height_ * 0.5};
+    }
+
+    get centerInContentSpace(): number {
+        return -this.content_.node.position.y;
     }
 
     get height(): number {
@@ -56,6 +60,6 @@ export class ViewComponent extends Component {
     }
 
     private onTouchCancel(event: EventTouch): void {
-        
+
     }
 }
