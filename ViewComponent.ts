@@ -43,23 +43,19 @@ export class ViewComponent extends Component {
         uiTransform.setContentSize(this.width_, this.height_);
     }
 
-    private touchY_: number;
     private onTouchBegan(event: EventTouch): void {
-        console.log(`onTouchBegan, location: ${event.getLocation()}, ${event.getUILocation()}`);
-        this.touchY_ = event.getLocationY();
+
     }
 
     private onTouchMoved(event: EventTouch): void {
-        let delta = event.getDeltaY();
         this.content_.processTouchMoved(event);
-        console.log(`onTouchMoved, delta: ${delta}, pos: ${event.getUILocation()}`);
     }
 
     private onTouchEnd(event: EventTouch): void {
-        console.log(`onTouchEnd, location: ${event.getLocation()}, delta: ${event.getLocationY() - this.touchY_}`);
+
     }
 
     private onTouchCancel(event: EventTouch): void {
-        console.log(`onTouchCancel, location: ${event.getLocation()}`);
+        
     }
 }
