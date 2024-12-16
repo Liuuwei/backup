@@ -175,11 +175,13 @@ export class ContentComponent extends Component {
 
     updatePos(): void {
         let viewRange = this.view_.viewRangeInContentSpace;
-        if (this.top < viewRange.top) {
-            let deltaHeight = viewRange.top - this.top;
-            if (deltaHeight != 0) {
-                this.node.setPosition(0, this.node.position.y + deltaHeight);
-            }
+        if (this.top > viewRange.top && this.bottom > viewRange.bottom) {
+            let delta = this.bottom - viewRange.bottom;
+            delta = Math.min(delta, this.top - viewRange.top);
+            this.node.setPosition(0, this.node.position.y - delta);
+        } else if (this.top < viewRange.top) {
+            let delta = viewRange.top - this.top;
+            this.node.setPosition(0, this.node.position.y + delta);
         }
     }
 
@@ -240,11 +242,11 @@ export class ContentComponent extends Component {
         let nextNodeIndex = oldIndex;
 
         if (this.inViewRange(child)) {
-            for (let i = 0; i <= prevNodeIndex; i++) {
+            for (let i = nextNodeIndex; i < this.node.children.length; i++) {
                 let node = this.node.children[i];
-                node.setPosition(0, node.position.y - height);
+                node.setPosition(0, node.position.y + height);
             }
-            this.top -= height;
+            this.bottom += height;
         } else {
             if (child.position.y > this.view_.centerInContentSpace) {
                 for (let i = 0; i <= prevNodeIndex; i++) {
