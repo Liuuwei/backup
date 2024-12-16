@@ -236,24 +236,26 @@ export class ContentComponent extends Component {
                 break;
             }
         }
+        let prevNodeIndex = oldIndex - 1;
+        let nextNodeIndex = oldIndex;
 
         if (this.inViewRange(child)) {
-            for (let i = 0; i < oldIndex; i++) {
+            for (let i = 0; i <= prevNodeIndex; i++) {
                 let node = this.node.children[i];
                 node.setPosition(0, node.position.y - height);
             }
             this.top -= height;
         } else {
             if (child.position.y > this.view_.centerInContentSpace) {
-                for (let i = 0; i < oldIndex; i++) {
+                for (let i = 0; i <= prevNodeIndex; i++) {
                     let node = this.node.children[i];
                     node.setPosition(0, node.position.y - height);
                 }
                 this.top -= height;
             } else {
-                for (let i = oldIndex + 1; i < this.node.children.length; i++) {
+                for (let i = nextNodeIndex; i < this.node.children.length; i++) {
                     let node = this.node.children[i];
-                    node.setPosition(0, node.position.y - height);
+                    node.setPosition(0, node.position.y + height);
                     console.log(`node: ${node.name}`)
                 }
                 this.bottom += height;
