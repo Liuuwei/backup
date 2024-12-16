@@ -1,5 +1,14 @@
-import { _decorator, color, Component, EventTouch, Label, MathBase, Node, NodeEventType, UIRenderer, UITransform, UITransformComponent, warn } from 'cc';
+import { _decorator } from 'cc';
+import { Component } from 'cc';
+import { EventTouch } from 'cc';
+import { Label } from 'cc';
+import { Node } from 'cc';
+import { NodeEventType } from 'cc';
+import { UIOpacity } from 'cc';
+import { UITransform } from 'cc';
+import { warn } from 'cc';
 import { ViewComponent } from './ViewComponent';
+
 const { ccclass, property } = _decorator;
 
 export class ContentNode extends Node {
