@@ -214,12 +214,12 @@ export class ContentComponent extends Component {
     updateContentRenderingState(): void {
         warn(`updateContentRenderingState`);
         for (let node of this.node.children) {
-            let comp = node.getComponent(UIRenderer);
+            let comp = node.getComponent(UIOpacity) || node.addComponent(UIOpacity);
             if (comp) {
                 if (this.inViewRange(node)) {
-                    comp.enabled = true;
+                    comp.opacity = 255;
                 } else {
-                    comp.enabled = false;
+                    comp.opacity = 0;
                 }
             }
         }
