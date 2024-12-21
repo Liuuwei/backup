@@ -25,12 +25,12 @@ export class ViewComponent extends Component {
         this.node.on(NodeEventType.TOUCH_CANCEL, this.onTouchCancel, this);
     }
 
-    get viewRangeInContentSpace(): {top: number, bottom: number} {
+    viewRangeInContentSpace(): {top: number, bottom: number} {
         let y = -this.content.node.position.y;
         return {top: y + this.height * 0.5, bottom: y - this.height * 0.5};
     }
 
-    get centerInContentSpace(): number {
+    centerInContentSpace(): number {
         return -this.content.node.position.y;
     }
 
