@@ -1,4 +1,4 @@
-import { _decorator, CircleCollider2D } from 'cc';
+import { _decorator, CircleCollider2D, warn } from 'cc';
 import { Component } from 'cc';
 import { Node } from 'cc';
 import { NodeEventType } from 'cc';
@@ -253,16 +253,12 @@ export class ContentComponent extends Component {
         let viewRange = this.view.viewRangeInContentSpace();
         if (delta > 0) {
             if (delta > viewRange.bottom - this.bottom) {
-                this.node.setPosition(0, this.node.position.y + (viewRange.bottom - this.bottom));
-                delta -= viewRange.bottom - this.bottom;
                 this.onTouchMoveToBottom(delta);
             } else {
                 this.node.setPosition(0, this.node.position.y + delta);
             }
         } else {
             if (-delta > this.top - viewRange.top) {
-                this.node.setPosition(0, this.node.position.y - (this.top - viewRange.top));
-                delta += this.top - viewRange.top;
                 this.onTouchMoveToTop(delta);
             } else {
                 this.node.setPosition(0, this.node.position.y + delta);
