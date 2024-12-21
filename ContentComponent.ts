@@ -1,13 +1,12 @@
-import { _decorator } from 'cc';
+import { _decorator, CircleCollider2D } from 'cc';
 import { Component } from 'cc';
-import { EventTouch } from 'cc';
-import { Label } from 'cc';
 import { Node } from 'cc';
 import { NodeEventType } from 'cc';
 import { UIOpacity } from 'cc';
 import { UITransform } from 'cc';
 import { warn } from 'cc';
 import { ViewComponent } from './ViewComponent';
+import { MSGData, MSGDataContainer } from './MSGData';
 
 const { ccclass, property } = _decorator;
 
@@ -34,21 +33,18 @@ export class ContentComponent extends Component {
     private view_: ViewComponent;
     private top_: number = 0;
     private bottom_: number = 0;
-
-    private negative_: number = -1;
-    private positive_: number = 0;
+    private source: MSGDataContainer;
 
     protected onLoad(): void {
         this.node.addComponent(UITransform);
         this.node.on(NodeEventType.CHILD_REMOVED, this.onRemoveChild, this);
-        this.node.on(NodeEventType.TRANSFORM_CHANGED, this.updateContentRenderingState, this);
+        this.node.on(NodeEventType.TRANSFORM_CHANGED, this.onTransformChanged, this);
 
-        for (let i = 0; i < 20; i++) {
-            let node = new Node(i.toString());
-            node.addComponent(Label).string = node.name;
-            this.node.addChild(node);
-            this.positive_++;
-        }
+        this.node.setPosition(0, this.view_.node.position.y - this.view_.height * 0.5);
+
+        this.source = new MSGDataContainer();
+        this.source.init();
+        this.fullContent();
     }
 
     set view(view: ViewComponent) {
@@ -59,19 +55,12 @@ export class ContentComponent extends Component {
         return this.view_;
     }
 
-    refreshContent(): void {
-        this.updatePos();
-        this.updateContentRenderingState();
-    }
-
     get top(): number {
         return this.top_;
     }
 
     set top(value: number) {
         this.top_ = value;
-
-        this.refreshContent();
     }
 
     get bottom(): number {
@@ -80,8 +69,6 @@ export class ContentComponent extends Component {
 
     set bottom(value: number) {
         this.bottom_ = value;
-
-        this.refreshContent();
     }
 
     insert(child: Node): void {
@@ -146,34 +133,21 @@ export class ContentComponent extends Component {
         }
 
         if (content.inViewRange(child)) {
-            child.setPosition(0, child.position.y - deltaHeight * 0.5);
-            for (let i = index + 1; i < children.length; i++) {
+            child.setPosition(0, child.position.y + deltaHeight * 0.5);
+            for (let i = 0; i < index; i++) {
                 let node = children[i];
-                node.setPosition(0, node.position.y - deltaHeight);
+                node.setPosition(0, node.position.y + deltaHeight);
             }
-            content.bottom = content.bottom - deltaHeight;
-        } else {
-            if (child.position.y > content.view_.centerInContentSpace) {
-                child.setPosition(0, child.position.y + deltaHeight * 0.5);
-                for (let i = 0; i < index; i++) {
-                    let node = children[i];
-                    node.setPosition(0, node.position.y + deltaHeight);
-                }
-                content.top += deltaHeight;
-            } else {
-                child.setPosition(0, child.position.y - deltaHeight * 0.5);
-                for (let i = index + 1; i < children.length; i++) {
-                    let node = children[i];
-                    node.setPosition(0, node.position.y - deltaHeight);
-                }
-                content.bottom -= deltaHeight;
-            }
+            content.top = content.top + deltaHeight;
         }
 
-        
+        console.log(`onChildSizeChanged, top: ${content.top}`);
+
+        content.adjustPos();
+        content.fullContent();
     }
 
-    updatePos(): void {
+    adjustPos(): void {
         let viewRange = this.view_.viewRangeInContentSpace;
         if (this.top > viewRange.top && this.bottom > viewRange.bottom) {
             let delta = this.bottom - viewRange.bottom;
@@ -185,46 +159,60 @@ export class ContentComponent extends Component {
         }
     }
 
+    fullContent(): void {
+        let viewRange = this.view_.viewRangeInContentSpace;
+        if (this.node.children.length == 0) {
+            let data = this.source.data();
+            let latest = data[data.length - 1];
+            let viewRange = this.view.viewRangeInContentSpace;
+            while (latest && this.top < viewRange.top) {
+                let node = this.source.createNode(latest);
+                console.log(`fullContent, node: ${node.name}`);
+                this.node.insertChild(node, 0);
+                latest = this.source.getPreviousValue(latest);
+            }
+            this.adjustPos();
+        } else {
+            let bottomNode = this.node.children[this.node.children.length - 1];
+            let bottomID = bottomNode.getComponent(MSGComponent).id;
+            let next: MSGData = this.source.getNextValue(bottomID);
+            while (this.bottom > viewRange.bottom && next) {
+                let node = this.source.createNode(next);
+                this.node.addChild(node);
+                next = this.source.getNextValue(next.id);
+            }
+        }
+    }
+
     inViewRange(child: Node): boolean {
         let viewY = -this.node.position.y;
         let viewHeight = this.view_.height;
         let y = child.position.y;
         let height = child.getComponent(UITransform).contentSize.height;
 
-        /*
-        viewY 671
-        viewHeight 426
-        y 882
-        height 50
-        */
-
-        let a = Math.abs(y - viewY);
-        let b = Math.abs(y + height * 0.5 - viewY);
-        let c = Math.abs(y - height * 0.5 - viewY);
-        let d = false;
         if (Math.abs(y - viewY) < viewHeight * 0.5 
             || Math.abs(y + height * 0.5 - viewY) < viewHeight * 0.5 
             || Math.abs(y - height * 0.5 - viewY) < viewHeight * 0.5) {
-            d = true;
+            return true;
         } else {
-            d = false;
+            return false;
         }
-
-        return d;
     }
 
-    updateContentRenderingState(): void {
-        warn(`updateContentRenderingState`);
-        for (let node of this.node.children) {
-            let comp = node.getComponent(UIOpacity) || node.addComponent(UIOpacity);
-            if (comp) {
-                if (this.inViewRange(node)) {
-                    comp.opacity = 255;
-                } else {
-                    comp.opacity = 0;
-                }
+    clearOutOfViewRangeNode(): void {
+        let removeChild: Node[] = [];
+        this.node.children.forEach((child: Node) => {
+            if (!this.inViewRange(child)) {
+                removeChild.push(child);
             }
+        });
+        for (let child of removeChild) {
+            this.node.removeChild(child);
         }
+    }
+
+    onTransformChanged(): void {
+        this.clearOutOfViewRangeNode();
     }
 
     onRemoveChild(child: Node): void {
@@ -247,6 +235,9 @@ export class ContentComponent extends Component {
                 node.setPosition(0, node.position.y + height);
             }
             this.bottom += height;
+
+            this.adjustPos();
+            this.fullContent();
         } else {
             if (child.position.y > this.view_.centerInContentSpace) {
                 for (let i = 0; i <= prevNodeIndex; i++) {
@@ -265,25 +256,56 @@ export class ContentComponent extends Component {
         }
     }
 
-    processTouchMoved(event: EventTouch): void {
-        let delta = event.getDeltaY();
+    processTouchMoved(delta: number): void {
         let viewRange = this.view_.viewRangeInContentSpace;
         if (delta > 0) {
             if (delta > viewRange.bottom - this.bottom) {
-                let node = new Node(this.positive_.toString());
-                node.addComponent(Label).string = node.name;
-                this.positive_++;
-                this.node.addChild(node);
+                this.onTouchMoveToBottom(delta);
+            } else {
+                this.node.setPosition(0, this.node.position.y + delta);
             }
-            this.node.setPosition(0, this.node.position.y + delta);
         } else {
             if (-delta > this.top - viewRange.top) {
-                let node = new Node(this.negative_.toString());
-                node.addComponent(Label).string = node.name;
-                this.negative_--;
-                this.node.insertChild(node, 0);
+                this.onTouchMoveToTop(delta);
+            } else {
+                this.node.setPosition(0, this.node.position.y + delta);
             }
-            this.node.setPosition(0, this.node.position.y + delta);
         }
     }
+
+    onTouchMoveToTop(delta: number): void {
+        let currTop = this.node.children[0];
+        let currMSG = currTop.getComponent(MSGComponent);
+        let prevMSG = this.source.getPreviousValue(currMSG.id);
+        let prevNode = this.source.createNode(prevMSG);
+        this.node.insertChild(prevNode, 0);
+        let size = prevNode.getComponent(UITransform).contentSize;
+        if (size.height > -delta) {
+            this.node.setPosition(0, this.node.position.y + delta);
+        } else {
+            this.node.setPosition(0, this.node.position.y - size.height);
+            delta += size.height;
+            this.processTouchMoved(delta);
+        }
+    }
+
+    onTouchMoveToBottom(delta: number): void {
+        let currTop = this.node.children[this.node.children.length - 1];
+        let currMSG = currTop.getComponent(MSGComponent);
+        let nextMSG = this.source.getNextValue(currMSG.id);
+        let nextNode = this.source.createNode(nextMSG);
+        this.node.addChild(nextNode);
+        let size = nextNode.getComponent(UITransform).contentSize;
+        if (size.height > delta) {
+            this.node.setPosition(0, this.node.position.y + delta);
+        } else {
+            this.node.setPosition(0, this.node.position.y + size.height);
+            delta -= size.height;
+            this.processTouchMoved(delta);
+        }
+    }
+}
+
+export class MSGComponent extends Component {
+    public id: number;
 }

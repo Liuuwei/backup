@@ -52,7 +52,7 @@ export class ViewComponent extends Component {
     }
 
     private onTouchMoved(event: EventTouch): void {
-        this.content_.processTouchMoved(event);
+        this.content_.processTouchMoved(event.getDeltaY());
     }
 
     private onTouchEnd(event: EventTouch): void {
