@@ -1,10 +1,8 @@
-import { _decorator, CircleCollider2D } from 'cc';
+import { _decorator, CircleCollider2D, warn } from 'cc';
 import { Component } from 'cc';
 import { Node } from 'cc';
 import { NodeEventType } from 'cc';
-import { UIOpacity } from 'cc';
 import { UITransform } from 'cc';
-import { warn } from 'cc';
 import { ViewComponent } from './ViewComponent';
 import { MSGData, MSGDataContainer } from './MSGData';
 
@@ -30,45 +28,22 @@ export class ContentNode extends Node {
 
 @ccclass('ContentComponent')
 export class ContentComponent extends Component {
-    private view_: ViewComponent;
-    private top_: number = 0;
-    private bottom_: number = 0;
+    private view: ViewComponent;
+    private top: number = 0;
+    private bottom: number = 0;
     private source: MSGDataContainer;
 
     protected onLoad(): void {
         this.node.addComponent(UITransform);
         this.node.on(NodeEventType.CHILD_REMOVED, this.onRemoveChild, this);
         this.node.on(NodeEventType.TRANSFORM_CHANGED, this.onTransformChanged, this);
+        this.view = this.node.parent.getComponent(ViewComponent);
 
-        this.node.setPosition(0, this.view_.node.position.y - this.view_.height * 0.5);
+        this.node.setPosition(0, this.view.node.position.y - this.view.getHeight() * 0.5);
 
         this.source = new MSGDataContainer();
         this.source.init();
         this.fullContent();
-    }
-
-    set view(view: ViewComponent) {
-        this.view_ = view;
-    }
-
-    get view(): ViewComponent {
-        return this.view_;
-    }
-
-    get top(): number {
-        return this.top_;
-    }
-
-    set top(value: number) {
-        this.top_ = value;
-    }
-
-    get bottom(): number {
-        return this.bottom_;
-    }
-
-    set bottom(value: number) {
-        this.bottom_ = value;
     }
 
     insert(child: Node): void {
@@ -78,8 +53,7 @@ export class ContentComponent extends Component {
             child.setPosition(0, this.top + height * 0.5);
             this.top = this.top + height;
         } else if (index == this.node.children.length - 1) {
-            child.setPosition(0, this.bottom - height * 0.5);
-            this.bottom = this.bottom - height;
+            this.append(child);
         } else {
             let prevChild = this.node.children[index - 1];
             let prevChildBottom = prevChild.position.y - prevChild.getComponent(UITransform).contentSize.height * 0.5;
@@ -117,7 +91,6 @@ export class ContentComponent extends Component {
             if (index == 0) {
                 let nextChild = children[index + 1];
                 let oldHeight = content.top - (nextChild.position.y + nextChild.getComponent(UITransform).contentSize.height * 0.5);
-                warn(`onChildSizeChanged, node: ${child.name}, oldHeight: ${oldHeight}`);
                 deltaHeight = height - oldHeight;
             } else if (index == children.length - 1) {
                 let prevChild = children[index - 1];
@@ -132,61 +105,82 @@ export class ContentComponent extends Component {
             }
         }
 
-        if (content.inViewRange(child)) {
+        if (index == 0) {
+            child.setPosition(0, child.position.y + deltaHeight * 0.5);
+            content.top += deltaHeight;
+        } else if (index == children.length - 1) {
+            child.setPosition(0, child.position.y - deltaHeight * 0.5);
+            content.bottom -= deltaHeight;
+        } else {
             child.setPosition(0, child.position.y + deltaHeight * 0.5);
             for (let i = 0; i < index; i++) {
                 let node = children[i];
                 node.setPosition(0, node.position.y + deltaHeight);
             }
-            content.top = content.top + deltaHeight;
+            content.top += deltaHeight;
         }
-
-        console.log(`onChildSizeChanged, top: ${content.top}`);
 
         content.adjustPos();
         content.fullContent();
     }
 
     adjustPos(): void {
-        let viewRange = this.view_.viewRangeInContentSpace;
+        let viewRange = this.view.viewRangeInContentSpace();
         if (this.top > viewRange.top && this.bottom > viewRange.bottom) {
-            let delta = this.bottom - viewRange.bottom;
-            delta = Math.min(delta, this.top - viewRange.top);
+            let delta = Math.min(this.top - viewRange.top, this.bottom - viewRange.bottom);
             this.node.setPosition(0, this.node.position.y - delta);
         } else if (this.top < viewRange.top) {
             let delta = viewRange.top - this.top;
             this.node.setPosition(0, this.node.position.y + delta);
         }
+        viewRange = this.view.viewRangeInContentSpace();
     }
 
     fullContent(): void {
-        let viewRange = this.view_.viewRangeInContentSpace;
+        let viewRange = this.view.viewRangeInContentSpace();
         if (this.node.children.length == 0) {
             let data = this.source.data();
             let latest = data[data.length - 1];
-            let viewRange = this.view.viewRangeInContentSpace;
-            while (latest && this.top < viewRange.top) {
+            while (latest && (this.top < viewRange.top || this.bottom > viewRange.bottom)) {
+                viewRange = this.view.viewRangeInContentSpace();
                 let node = this.source.createNode(latest);
-                console.log(`fullContent, node: ${node.name}`);
                 this.node.insertChild(node, 0);
                 latest = this.source.getPreviousValue(latest);
+                this.adjustPos();
             }
-            this.adjustPos();
         } else {
-            let bottomNode = this.node.children[this.node.children.length - 1];
-            let bottomID = bottomNode.getComponent(MSGComponent).id;
-            let next: MSGData = this.source.getNextValue(bottomID);
-            while (this.bottom > viewRange.bottom && next) {
-                let node = this.source.createNode(next);
-                this.node.addChild(node);
-                next = this.source.getNextValue(next.id);
+            // 先从后添加新信息
+            if (this.bottom > viewRange.bottom) {
+                let bottomNode = this.node.children[this.node.children.length - 1];
+                let bottomID = bottomNode.getComponent(MSGComponent).id;
+                let next: MSGData = this.source.getNextValue(bottomID);
+                while (this.bottom > viewRange.bottom && next) {
+                    viewRange = this.view.viewRangeInContentSpace();
+                    let node = this.source.createNode(next);
+                    this.node.addChild(node);
+                    next = this.source.getNextValue(next.id);
+                    this.adjustPos();
+                }
+            }
+            // 如果内容不够就往上添加旧信息
+            if (this.bottom > viewRange.bottom) {
+                let topNode = this.node.children[0];
+                let topID = topNode.getComponent(MSGComponent).id;
+                let previous = this.source.getPreviousValue(topID);
+                while (this.bottom > viewRange.bottom && previous) {
+                    viewRange = this.view.viewRangeInContentSpace();
+                    let node = this.source.createNode(previous);
+                    this.node.insertChild(node, 0);
+                    previous = this.source.getPreviousValue(previous);
+                    this.adjustPos();
+                }
             }
         }
     }
 
     inViewRange(child: Node): boolean {
         let viewY = -this.node.position.y;
-        let viewHeight = this.view_.height;
+        let viewHeight = this.view.getHeight();
         let y = child.position.y;
         let height = child.getComponent(UITransform).contentSize.height;
 
@@ -239,7 +233,7 @@ export class ContentComponent extends Component {
             this.adjustPos();
             this.fullContent();
         } else {
-            if (child.position.y > this.view_.centerInContentSpace) {
+            if (child.position.y > this.view.centerInContentSpace()) {
                 for (let i = 0; i <= prevNodeIndex; i++) {
                     let node = this.node.children[i];
                     node.setPosition(0, node.position.y - height);
@@ -249,7 +243,6 @@ export class ContentComponent extends Component {
                 for (let i = nextNodeIndex; i < this.node.children.length; i++) {
                     let node = this.node.children[i];
                     node.setPosition(0, node.position.y + height);
-                    console.log(`node: ${node.name}`)
                 }
                 this.bottom += height;
             }
@@ -257,7 +250,7 @@ export class ContentComponent extends Component {
     }
 
     processTouchMoved(delta: number): void {
-        let viewRange = this.view_.viewRangeInContentSpace;
+        let viewRange = this.view.viewRangeInContentSpace();
         if (delta > 0) {
             if (delta > viewRange.bottom - this.bottom) {
                 this.onTouchMoveToBottom(delta);
@@ -277,6 +270,9 @@ export class ContentComponent extends Component {
         let currTop = this.node.children[0];
         let currMSG = currTop.getComponent(MSGComponent);
         let prevMSG = this.source.getPreviousValue(currMSG.id);
+        if (!prevMSG) {
+            return ;
+        }
         let prevNode = this.source.createNode(prevMSG);
         this.node.insertChild(prevNode, 0);
         let size = prevNode.getComponent(UITransform).contentSize;
@@ -293,6 +289,9 @@ export class ContentComponent extends Component {
         let currTop = this.node.children[this.node.children.length - 1];
         let currMSG = currTop.getComponent(MSGComponent);
         let nextMSG = this.source.getNextValue(currMSG.id);
+        if (!nextMSG) {
+            return ;
+        }
         let nextNode = this.source.createNode(nextMSG);
         this.node.addChild(nextNode);
         let size = nextNode.getComponent(UITransform).contentSize;
