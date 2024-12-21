@@ -28,45 +28,22 @@ export class ContentNode extends Node {
 
 @ccclass('ContentComponent')
 export class ContentComponent extends Component {
-    private view_: ViewComponent;
-    private top_: number = 0;
-    private bottom_: number = 0;
+    private view: ViewComponent;
+    private top: number = 0;
+    private bottom: number = 0;
     private source: MSGDataContainer;
 
     protected onLoad(): void {
         this.node.addComponent(UITransform);
         this.node.on(NodeEventType.CHILD_REMOVED, this.onRemoveChild, this);
         this.node.on(NodeEventType.TRANSFORM_CHANGED, this.onTransformChanged, this);
+        this.view = this.node.parent.getComponent(ViewComponent);
 
-        this.node.setPosition(0, this.view_.node.position.y - this.view_.height * 0.5);
+        this.node.setPosition(0, this.view.node.position.y - this.view.getHeight() * 0.5);
 
         this.source = new MSGDataContainer();
         this.source.init();
         this.fullContent();
-    }
-
-    set view(view: ViewComponent) {
-        this.view_ = view;
-    }
-
-    get view(): ViewComponent {
-        return this.view_;
-    }
-
-    get top(): number {
-        return this.top_;
-    }
-
-    set top(value: number) {
-        this.top_ = value;
-    }
-
-    get bottom(): number {
-        return this.bottom_;
-    }
-
-    set bottom(value: number) {
-        this.bottom_ = value;
     }
 
     insert(child: Node): void {
@@ -143,30 +120,29 @@ export class ContentComponent extends Component {
             content.top += deltaHeight;
         }
 
-        content.adjustPos(child);
+        content.adjustPos();
         content.fullContent();
     }
 
-    adjustPos(node?: Node): void {
-        let viewRange = this.view_.viewRangeInContentSpace;
+    adjustPos(): void {
+        let viewRange = this.view.viewRangeInContentSpace;
         if (this.top > viewRange.top && this.bottom > viewRange.bottom) {
-            let delta = this.bottom - viewRange.bottom;
-            delta = Math.min(delta, this.top - viewRange.top);
+            let delta = Math.min(this.top - viewRange.top, this.bottom - viewRange.bottom);
             this.node.setPosition(0, this.node.position.y - delta);
         } else if (this.top < viewRange.top) {
             let delta = viewRange.top - this.top;
             this.node.setPosition(0, this.node.position.y + delta);
         }
-        viewRange = this.view_.viewRangeInContentSpace;
+        viewRange = this.view.viewRangeInContentSpace;
     }
 
     fullContent(): void {
-        let viewRange = this.view_.viewRangeInContentSpace;
+        let viewRange = this.view.viewRangeInContentSpace;
         if (this.node.children.length == 0) {
             let data = this.source.data();
             let latest = data[data.length - 1];
             while (latest && (this.top < viewRange.top || this.bottom > viewRange.bottom)) {
-                viewRange = this.view_.viewRangeInContentSpace;
+                viewRange = this.view.viewRangeInContentSpace;
                 let node = this.source.createNode(latest);
                 this.node.insertChild(node, 0);
                 latest = this.source.getPreviousValue(latest);
@@ -179,7 +155,7 @@ export class ContentComponent extends Component {
                 let bottomID = bottomNode.getComponent(MSGComponent).id;
                 let next: MSGData = this.source.getNextValue(bottomID);
                 while (this.bottom > viewRange.bottom && next) {
-                    viewRange = this.view_.viewRangeInContentSpace;
+                    viewRange = this.view.viewRangeInContentSpace;
                     let node = this.source.createNode(next);
                     this.node.addChild(node);
                     next = this.source.getNextValue(next.id);
@@ -192,7 +168,7 @@ export class ContentComponent extends Component {
                 let topID = topNode.getComponent(MSGComponent).id;
                 let previous = this.source.getPreviousValue(topID);
                 while (this.bottom > viewRange.bottom && previous) {
-                    viewRange = this.view_.viewRangeInContentSpace;
+                    viewRange = this.view.viewRangeInContentSpace;
                     let node = this.source.createNode(previous);
                     this.node.insertChild(node, 0);
                     previous = this.source.getPreviousValue(previous);
@@ -204,7 +180,7 @@ export class ContentComponent extends Component {
 
     inViewRange(child: Node): boolean {
         let viewY = -this.node.position.y;
-        let viewHeight = this.view_.height;
+        let viewHeight = this.view.getHeight();
         let y = child.position.y;
         let height = child.getComponent(UITransform).contentSize.height;
 
@@ -257,7 +233,7 @@ export class ContentComponent extends Component {
             this.adjustPos();
             this.fullContent();
         } else {
-            if (child.position.y > this.view_.centerInContentSpace) {
+            if (child.position.y > this.view.centerInContentSpace) {
                 for (let i = 0; i <= prevNodeIndex; i++) {
                     let node = this.node.children[i];
                     node.setPosition(0, node.position.y - height);
@@ -274,7 +250,7 @@ export class ContentComponent extends Component {
     }
 
     processTouchMoved(delta: number): void {
-        let viewRange = this.view_.viewRangeInContentSpace;
+        let viewRange = this.view.viewRangeInContentSpace;
         if (delta > 0) {
             if (delta > viewRange.bottom - this.bottom) {
                 this.node.setPosition(0, this.node.position.y + (viewRange.bottom - this.bottom));

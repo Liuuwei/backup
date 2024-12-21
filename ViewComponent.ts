@@ -4,9 +4,9 @@ const { ccclass, property } = _decorator;
 
 @ccclass("ViewComponent")
 export class ViewComponent extends Component {
-    private width_: number;
-    private height_: number;
-    private content_: ContentComponent;
+    private width: number;
+    private height: number;
+    private content: ContentComponent;
 
     protected onLoad(): void {
         let size = this.node.parent.getComponent(UITransform).contentSize;
@@ -15,8 +15,7 @@ export class ViewComponent extends Component {
         this.node.addComponent(Mask);
 
         let content = new ContentNode("content");
-        this.content_ = content.addComponent(ContentComponent);
-        this.content_.view = this;
+        this.content = content.addComponent(ContentComponent);
 
         this.node.addChild(content);
 
@@ -27,24 +26,24 @@ export class ViewComponent extends Component {
     }
 
     get viewRangeInContentSpace(): {top: number, bottom: number} {
-        let y = -this.content_.node.position.y;
-        return {top: y + this.height_ * 0.5, bottom: y - this.height_ * 0.5};
+        let y = -this.content.node.position.y;
+        return {top: y + this.height * 0.5, bottom: y - this.height * 0.5};
     }
 
     get centerInContentSpace(): number {
-        return -this.content_.node.position.y;
+        return -this.content.node.position.y;
     }
 
-    get height(): number {
-        return this.height_;
+    getHeight(): number {
+        return this.height;
     }
 
     setViewRange(width: number, height: number): void {
-        this.width_ = width;
-        this.height_ = height;
+        this.width = width;
+        this.height = height;
 
         let uiTransform = this.node.getComponent(UITransform) || this.node.addComponent(UITransform);
-        uiTransform.setContentSize(this.width_, this.height_);
+        uiTransform.setContentSize(this.width, this.height);
     }
 
     private onTouchBegan(event: EventTouch): void {
@@ -52,7 +51,7 @@ export class ViewComponent extends Component {
     }
 
     private onTouchMoved(event: EventTouch): void {
-        this.content_.processTouchMoved(event.getDeltaY());
+        this.content.processTouchMoved(event.getDeltaY());
     }
 
     private onTouchEnd(event: EventTouch): void {
