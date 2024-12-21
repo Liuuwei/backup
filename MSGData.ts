@@ -3,9 +3,10 @@ import { MSGComponent } from "./ContentComponent";
 
 export class MSGData {
     public id: number;
+    public v: boolean = true;
 
     valid(): boolean {
-        return true;
+        return this.v;
     }
 }
 
@@ -21,6 +22,9 @@ export class MSGDataContainer {
         for (let i = 0; i < 100; i++) {
             let msg = new MSGData();
             msg.id = i;
+            if (i % 2 == 0) {
+                msg.v = false;
+            }
             this.add(msg);
         }
     }
