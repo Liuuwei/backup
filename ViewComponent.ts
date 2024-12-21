@@ -14,7 +14,7 @@ export class ViewComponent extends Component {
 
         this.node.addComponent(Mask);
 
-        let content = new ContentNode("contet");
+        let content = new ContentNode("content");
         this.content_ = content.addComponent(ContentComponent);
         this.content_.view = this;
 
@@ -39,9 +39,9 @@ export class ViewComponent extends Component {
         return this.height_;
     }
 
-    setViewRange(width: number, heihgt: number): void {
+    setViewRange(width: number, height: number): void {
         this.width_ = width;
-        this.height_ = heihgt;
+        this.height_ = height;
 
         let uiTransform = this.node.getComponent(UITransform) || this.node.addComponent(UITransform);
         uiTransform.setContentSize(this.width_, this.height_);
