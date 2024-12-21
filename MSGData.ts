@@ -3,7 +3,7 @@ import { MSGComponent } from "./ContentComponent";
 
 export class MSGData {
     public id: number;
-    public v: boolean = true;
+    public v: boolean;
 
     valid(): boolean {
         return this.v;
@@ -23,7 +23,7 @@ export class MSGDataContainer {
             let msg = new MSGData();
             msg.id = i;
             if (i % 2 == 0) {
-                msg.v = false;
+                msg.v = true;
             }
             this.add(msg);
         }

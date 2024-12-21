@@ -1,4 +1,4 @@
-import { _decorator, CircleCollider2D, warn } from 'cc';
+import { _decorator, CircleCollider2D, settings, tween, TweenSystem, v3, warn } from 'cc';
 import { Component } from 'cc';
 import { Node } from 'cc';
 import { NodeEventType } from 'cc';
@@ -32,6 +32,7 @@ export class ContentComponent extends Component {
     private top: number = 0;
     private bottom: number = 0;
     private source: MSGDataContainer;
+    private map: Map<number, Node>;
 
     protected onLoad(): void {
         this.node.addComponent(UITransform);
@@ -41,12 +42,22 @@ export class ContentComponent extends Component {
 
         this.node.setPosition(0, this.view.node.position.y - this.view.getHeight() * 0.5);
 
+        this.map = new Map();
         this.source = new MSGDataContainer();
         this.source.init();
         this.fullContent();
+
+        setTimeout(() => {
+            this.moveToSpecificMSG(50);
+        }, 3000);
+        setTimeout(() => {
+            this.moveToSpecificMSG(96);
+        }, 10000);
     }
 
     insert(child: Node): void {
+        this.map.set(child.getComponent(MSGComponent).id, child);
+
         let index = this.node.children.indexOf(child);
         let height = child.getComponent(UITransform).contentSize.height;
         if (index == 0) {
@@ -69,6 +80,8 @@ export class ContentComponent extends Component {
     }
 
     append(child: Node): void {
+        this.map.set(child.getComponent(MSGComponent).id, child);
+
         let height = child.getComponent(UITransform).contentSize.height;
         child.setPosition(0, this.bottom - height * 0.5);
         this.bottom = this.bottom - height;
@@ -210,6 +223,8 @@ export class ContentComponent extends Component {
     }
 
     onRemoveChild(child: Node): void {
+        this.map.delete(child.getComponent(MSGComponent).id);
+
         child.off(NodeEventType.SIZE_CHANGED, this.onChildSizeChanged, child);
 
         let height = child.getComponent(UITransform).contentSize.height;
@@ -249,29 +264,31 @@ export class ContentComponent extends Component {
         }
     }
 
-    processTouchMoved(delta: number): void {
+    processTouchMoved(delta: number): boolean {
         let viewRange = this.view.viewRangeInContentSpace();
         if (delta > 0) {
             if (delta > viewRange.bottom - this.bottom) {
-                this.onTouchMoveToBottom(delta);
+                return this.onTouchMoveToBottom(delta);
             } else {
                 this.node.setPosition(0, this.node.position.y + delta);
             }
         } else {
             if (-delta > this.top - viewRange.top) {
-                this.onTouchMoveToTop(delta);
+                return this.onTouchMoveToTop(delta);
             } else {
                 this.node.setPosition(0, this.node.position.y + delta);
             }
         }
+
+        return true;
     }
 
-    onTouchMoveToTop(delta: number): void {
+    onTouchMoveToTop(delta: number): boolean {
         let currTop = this.node.children[0];
         let currMSG = currTop.getComponent(MSGComponent);
         let prevMSG = this.source.getPreviousValue(currMSG.id);
         if (!prevMSG) {
-            return ;
+            return false;
         }
         let prevNode = this.source.createNode(prevMSG);
         this.node.insertChild(prevNode, 0);
@@ -283,14 +300,16 @@ export class ContentComponent extends Component {
             delta += size.height;
             this.processTouchMoved(delta);
         }
+
+        return true;
     }
 
-    onTouchMoveToBottom(delta: number): void {
+    onTouchMoveToBottom(delta: number): boolean {
         let currTop = this.node.children[this.node.children.length - 1];
         let currMSG = currTop.getComponent(MSGComponent);
         let nextMSG = this.source.getNextValue(currMSG.id);
         if (!nextMSG) {
-            return ;
+            return false;
         }
         let nextNode = this.source.createNode(nextMSG);
         this.node.addChild(nextNode);
@@ -302,6 +321,43 @@ export class ContentComponent extends Component {
             delta -= size.height;
             this.processTouchMoved(delta);
         }
+
+        return true;
+    }
+
+    moveToSpecificMSG(ele: MSGData | number): void {
+        let oneFrameMoveDelta = 10;
+        let id = ele instanceof MSGData ? ele.id : ele;
+        let topID = this.node.children[0].getComponent(MSGComponent).id;
+        oneFrameMoveDelta *= id > topID ? 1 : -1;
+        tween(this.node)
+            .delay(0.016)
+            .call(() => {
+                if (this.processTouchMoved(oneFrameMoveDelta)) {
+                    if (this.map.get(id)) {
+                        let node = this.map.get(id);
+                        let size = node.getComponent(UITransform).contentSize;
+                        let viewRange = this.view.viewRangeInContentSpace();
+
+                        if (oneFrameMoveDelta < 0) {
+                            let delta = viewRange.top - (node.position.y + size.height * 0.5);
+                            this.node.setPosition(0, this.node.position.y + delta);
+                        } else {
+                            let delta = viewRange.bottom - (node.position.y - size.height * 0.5);
+                            this.node.setPosition(0, this.node.position.y + delta);
+                        }
+                        
+                        warn(`TweenSystem.instance.ActionManager.removeActionByTag(9527, this);`);
+                        TweenSystem.instance.ActionManager.removeActionByTag(9527, this.node);
+                    }
+                } else {
+                    TweenSystem.instance.ActionManager.removeActionByTag(9527, this.node);
+                }
+            })
+            .union()
+            .repeatForever()
+            .tag(9527)
+            .start();
     }
 }
 
